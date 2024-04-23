@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace CountryModel;
 
-public partial class PlayerSourceContext : DbContext
+public partial class PlayerSourceContext : IdentityDbContext<ClubPlayerUser>
 {
     public PlayerSourceContext()
     {
@@ -36,6 +37,7 @@ public partial class PlayerSourceContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Club>(entity =>
         {
             entity.HasKey(e => e.ClubId).HasName("PK_tmp_ms_x_AF82112AB7EE1730");
