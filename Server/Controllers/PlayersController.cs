@@ -38,6 +38,7 @@ namespace Server.Controllers
             return await x.ToListAsync();
         }
 
+        [Authorize]
         [HttpGet("PlayerClubs/{id}")]
         public async Task<ActionResult<List<object>>> GetClubsByPlayer(int id)
         {

@@ -54,12 +54,13 @@ namespace Server.Controllers
             return club;
         }
 
-       /* [HttpGet("ClubPlayers/{id}")]
-        public async Task<ActionResult<IEnumerable<Player>>> GetPlayersByClub(int id)
-        {
-            return await context.Players.Where(c => c.ClubId == id).ToListAsync();
-        }*/
+        /* [HttpGet("ClubPlayers/{id}")]
+         public async Task<ActionResult<IEnumerable<Player>>> GetPlayersByClub(int id)
+         {
+             return await context.Players.Where(c => c.ClubId == id).ToListAsync();
+         }*/
 
+        [Authorize]
         [HttpGet("ClubPlayers/{id}")]
         public async Task<ActionResult<List<object>>> GetPlayersByClub(int id)
         {
