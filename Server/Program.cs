@@ -54,7 +54,7 @@ builder.Services.AddIdentity<ClubPlayerUser, IdentityRole>().AddEntityFrameworkS
 
 FirebaseApp.Create(new AppOptions()
 {
-    Credential = GoogleCredential.FromFile("C:\\Users\\ACER\\source\\repos\\Server\\Server\\my-angular-app-f7e34-firebase-adminsdk-gq83z-d47a16db07.json"),
+    Credential = GoogleCredential.FromFile(builder.Configuration.GetConnectionString("GoogleFileCredential")),
 });
 
 builder.Services.AddAuthentication(options =>
