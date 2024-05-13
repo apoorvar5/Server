@@ -1,37 +1,40 @@
-﻿using CountryModel;
+﻿using FirebaseAdmin.Auth;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Server.DTO;
-using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
-namespace Server.Controllers
+public class FirebaseAuthenticationMiddleware
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class AdminController(UserManager<ClubPlayerUser> userManager, JwtHandler jwtHandler) : ControllerBase
-    {
-        [HttpPost("Login")]
-        public async Task<IActionResult> Login(LoginRequest loginRequest)
-        {
-            ClubPlayerUser? user = await userManager.FindByNameAsync(loginRequest.UserName);
-            if (user == null)
-            {
-                return Unauthorized("Invalid UserName or Password");
-            }
-            bool success = await userManager.CheckPasswordAsync(user, loginRequest.Password);
-            if (!success)
-            {
-                return Unauthorized("Invalid UserName or Password");
-            }
-            JwtSecurityToken token = await jwtHandler.GetTokenAsync(user);
-            string jwtString = new JwtSecurityTokenHandler().WriteToken(token);
+    private readonly RequestDelegate _next;
 
-            return Ok(new LoginResult { 
-                Success = true,
-                Message = "Log-In Success",
-                Token = jwtString,
-            });
+    public FirebaseAuthenticationMiddleware(RequestDelegate next)
+    {
+        _next = next;
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        string authToken = context.Request.Headers["Authorization"];
+        if (string.IsNullOrEmpty(authToken) || !authToken.StartsWith("Bearer "))
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("Unauthorized");
+            return;
+        }
+
+        string idToken = authToken.Substring("Bearer ".Length);
+
+        try
+        {
+            var decodedToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
+            // Authentication successful, proceed with the request
+            var claims = decodedToken.Claims.Select(x => new Claim(x.Key, x.Value.ToString()));
+            context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Firebase"));
+            await _next(context);
+        }
+        catch (FirebaseAuthException)
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("Unauthorized");
         }
     }
 }

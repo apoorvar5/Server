@@ -1,10 +1,12 @@
 using CountryModel;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Server;
 using Microsoft.OpenApi.Models;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Identity;
+using FirebaseAdmin.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +51,12 @@ builder.Services.AddSwaggerGen(c => {
 
 builder.Services.AddDbContext<PlayerSourceContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddIdentity<ClubPlayerUser, IdentityRole>().AddEntityFrameworkStores<PlayerSourceContext>();
+
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromFile("C:\\Users\\ACER\\source\\repos\\Server\\Server\\my-angular-app-f7e34-firebase-adminsdk-gq83z-d47a16db07.json"),
+});
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -58,20 +66,46 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new()
     {
-        RequireExpirationTime = true,
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false,
+        ValidateAudience = false,
         ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        ValidateIssuerSigningKey = false,
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            if (context.SecurityToken is not JwtSecurityToken jwtToken)
+            {
+                context.Fail("Unauthorized");
+                return;
+            }
 
-        ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-        ValidAudience = builder.Configuration["JwtSettings:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(
-            builder.Configuration["JwtSettings:SecurityKey"] ?? throw new InvalidOperationException()))
+            try
+            {
+                var firebaseToken = await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(jwtToken.RawData);
+                // Token is valid, you can access firebaseToken.Uid to get the user's ID
+                // You can also access other user claims like email, etc. from firebaseToken
+                // Perform any additional validation or processing here if needed
+            }
+            catch (FirebaseAuthException)
+            {
+                context.Fail("Unauthorized");
+                return;
+            }
+
+            // If the token is successfully validated, no need to fail the authentication
+            context.Success();
+        },
+        OnAuthenticationFailed = context =>
+        {
+            // Handle authentication failure
+            Console.WriteLine(context.Exception);
+            return Task.CompletedTask;
+        }
     };
 });
 
-builder.Services.AddScoped<JwtHandler>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -83,6 +117,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(options => options.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 app.UseAuthentication();
+app.UseMiddleware<FirebaseAuthenticationMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
