@@ -92,13 +92,48 @@ namespace Server.Controllers
         // POST: api/Players
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Club>> PostPlayer(Player player
-            )
+        public async Task<ActionResult<Player>> PostPlayer([FromForm] NewPlayerDto newPlayerDto)
         {
-            context.Players.Add(player);
+            // Check if the model state is valid
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var query = $"INSERT INTO Player (PlayerName, PlayerPos, PlayerNationality) VALUES " + $"('{newPlayerDto.PlayerName}', '{newPlayerDto.PlayerPos}','{newPlayerDto.PlayerNationality}')";
+            await context.Database.ExecuteSqlRawAsync(query);
+            return Ok();
+        }
+
+        [HttpPost("{id}/AddClub")]
+        public async Task<ActionResult> AddClub(int id, [FromForm] NewClubDto newClubDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var club = new Club
+            {
+                ClubName = newClubDto.ClubName,
+                ClubLeague = newClubDto.ClubLeague,
+                ClubCountry = newClubDto.ClubCountry,
+
+            };
+            context.Clubs.Add(club);
             await context.SaveChangesAsync();
 
-            return CreatedAtAction("GetPlayer", new { id = player.PlayerId }, player);
+            var clubId = club.ClubId;
+
+            var playerClub = new PlayerClub
+            {
+                ClubId = clubId,
+                PlayerId = id,
+            };
+            context.PlayerClub.Add(playerClub);
+            await context.SaveChangesAsync();
+
+            return Ok();
         }
 
         // DELETE: api/Players/5

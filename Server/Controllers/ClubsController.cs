@@ -9,6 +9,7 @@ using CountryModel;
 using Server.DTO;
 using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
 
 namespace Server.Controllers
 {
@@ -114,14 +115,50 @@ namespace Server.Controllers
 
         // POST: api/Clubs
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        
         [HttpPost]
-        public async Task<ActionResult<Club>> PostClub(Club club
-            )
+        public async Task<ActionResult<Club>> PostClub([FromForm] NewClubDto newClubDto)
         {
-            context.Clubs.Add(club);
+            // Check if the model state is valid
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var query = $"INSERT INTO Club (ClubName, ClubLeague, ClubCountry) VALUES " + $"('{newClubDto.ClubName}', '{newClubDto.ClubLeague}','{newClubDto.ClubCountry}')";
+            await context.Database.ExecuteSqlRawAsync(query);
+            return Ok();
+        }
+
+        [HttpPost("{id}/AddPlayer")]
+        public async Task<ActionResult> AddPlayer(int id, [FromForm] NewPlayerDto newPlayerDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var player = new Player
+            {
+                PlayerName = newPlayerDto.PlayerName,
+                PlayerPos = newPlayerDto.PlayerPos,
+                PlayerNationality = newPlayerDto.PlayerNationality,
+
+            };
+            context.Players.Add(player);
             await context.SaveChangesAsync();
 
-            return CreatedAtAction("GetClub", new { id = club.ClubId }, club);
+            var playerId = player.PlayerId;
+
+            var playerClub = new PlayerClub
+            {
+                ClubId = id,
+                PlayerId = playerId,
+            };
+            context.PlayerClub.Add(playerClub);
+            await context.SaveChangesAsync();
+
+            return Ok();
         }
 
         // DELETE: api/Clubs/5
